@@ -6,12 +6,14 @@
 import psycopg2
 from contextlib import contextmanager
 
+
 def connect():
     """Connect to the PostgreSQL database.  Returns a database connection."""
     try:
         return psycopg2.connect("dbname=tournament")
     except:
         print("Connection failed")
+
 
 @contextmanager
 def get_cursor():
@@ -51,6 +53,7 @@ def countPlayers():
         rows = c.fetchall()
         return rows[0][0]
 
+
 def registerPlayer(name):
     """Adds a player to the tournament database.
 
@@ -61,13 +64,14 @@ def registerPlayer(name):
       name: the player's full name (need not be unique).
     """
     with get_cursor() as c:
-        c.execute("INSERT INTO Players (name) VALUES (%s)",(name,))
+        c.execute("INSERT INTO Players (name) VALUES (%s)", (name, ))
+
 
 def playerStandings():
     """Returns a list of the players and their win records, sorted by wins.
 
-    The first entry in the list should be the player in first place, or a player
-    tied for first place if there is currently a tie.
+    The first entry in the list should be the player in first place,
+    or a player tied for first place if there is currently a tie.
 
     Returns:
       A list of tuples, each of which contains (id, name, wins, matches):
@@ -79,7 +83,8 @@ def playerStandings():
     with get_cursor() as c:
         c.execute("SELECT * FROM Standings ORDER BY won DESC;")
         results = c.fetchall()
-        # If the top two results are equal then check by overall wins on matches played
+        # If the top two results are equal
+        # then check by overall wins on matches played
         if (results[0][2] != 0) and (results[0][2] == results[1][2]):
             c.execute("SELECT * FROM Standings"
                       " ORDER BY (cast(won AS DECIMAL)/total_matches) DESC;")
@@ -95,7 +100,8 @@ def reportMatch(winner, loser):
       loser:  the id number of the player who lost
     """
     with get_cursor() as c:
-        c.execute("INSERT INTO Matches (winner, loser) VALUES (%s,%s)",(winner,loser,))
+        c.execute("INSERT INTO Matches (winner, loser) VALUES (%s,%s)",
+                  (winner, loser,))
 
 
 def swissPairings():
@@ -116,14 +122,14 @@ def swissPairings():
     with get_cursor() as c:
         c.execute("SELECT id,name,won FROM Standings ORDER BY won DESC;")
         rows = c.fetchall()
-        i=0
+        i = 0
         pairings = []
         while i < len(rows):
             id1 = rows[i][0]
             name1 = rows[i][1]
             id2 = rows[i+1][0]
             name2 = rows[i+1][1]
-            pairings.append((id1,name1,id2,name2))
-            i=i+2
+            pairings.append((id1, name1, id2, name2))
+            i = i + 2
 
     return pairings
