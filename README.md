@@ -19,7 +19,7 @@ Players are matched in subsequent matches as per their score in previous matches
 
 1. Download [Virtual Box](https://www.virtualbox.org/wiki/Downloads) to run the virtual machine
 2. Download the latest build of [Vagrant](https://www.vagrantup.com/downloads.html)
-3. Fork [this](https://github.com/arushidoshi/Tournament-Results) repository and download it on your computer
+3. Fork [this](https://github.com/arushidoshi/fullstack-nanodegree-vm) repository and download it on your computer
 
 ## Instructions
 
