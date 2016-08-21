@@ -4,37 +4,52 @@
 #
 
 import psycopg2
-import bleach
+from contextlib import contextmanager
 
 def connect():
     """Connect to the PostgreSQL database.  Returns a database connection."""
-    return psycopg2.connect("dbname=tournament")
+    try:
+        return psycopg2.connect("dbname=tournament")
+    except:
+        print("Connection failed")
+
+@contextmanager
+def get_cursor():
+    """
+    Query helper function using context lib. Creates a cursor from a database
+    connection object, and performs queries using that cursor.
+    """
+    DB = connect()
+    c = DB.cursor()
+    try:
+        yield c
+    except:
+        raise
+    else:
+        DB.commit()
+    finally:
+        c.close()
+        DB.close()
 
 
 def deleteMatches():
     """Remove all the match records from the database."""
-    db = connect()
-    c = db.cursor()
-    c.execute("DELETE FROM Matches;")
-    db.commit()
-    db.close()
+    with get_cursor() as c:
+        c.execute("DELETE FROM Matches;")
+
 
 def deletePlayers():
     """Remove all the player records from the database."""
-    db = connect()
-    c = db.cursor()
-    c.execute("DELETE FROM Players;")
-    db.commit()
-    db.close()
+    with get_cursor() as c:
+        c.execute("DELETE FROM Players;")
+
 
 def countPlayers():
     """Returns the number of players currently registered."""
-    db = connect()
-    c = db.cursor()
-    c.execute("SELECT count(id) FROM Players;")
-    rows = c.fetchall()
-    db.close()
-    return rows[0][0]
+    with get_cursor() as c:
+        c.execute("SELECT count(id) FROM Players;")
+        rows = c.fetchall()
+        return rows[0][0]
 
 def registerPlayer(name):
     """Adds a player to the tournament database.
@@ -45,12 +60,8 @@ def registerPlayer(name):
     Args:
       name: the player's full name (need not be unique).
     """
-    db = connect()
-    c = db.cursor()
-    name = bleach.clean(name, strip=True)
-    c.execute("INSERT INTO Players (name) VALUES (%s)",(name,))
-    db.commit()
-    db.close();
+    with get_cursor() as c:
+        c.execute("INSERT INTO Players (name) VALUES (%s)",(name,))
 
 def playerStandings():
     """Returns a list of the players and their win records, sorted by wins.
@@ -65,16 +76,14 @@ def playerStandings():
         wins: the number of matches the player has won
         matches: the number of matches the player has played
     """
-    db = connect()
-    c = db.cursor()
-    c.execute("SELECT * FROM Standings ORDER BY won DESC;")
-    results = c.fetchall()
-    # If the top two results are equal then check by overall wins on matches played
-    if (results[0][2] != 0) and (results[0][2] == results[1][2]):
-        c.execute("SELECT * FROM Standings"
-                  " ORDER BY (cast(won AS DECIMAL)/match_played) DESC;")
+    with get_cursor() as c:
+        c.execute("SELECT * FROM Standings ORDER BY won DESC;")
         results = c.fetchall()
-    db.close()
+        # If the top two results are equal then check by overall wins on matches played
+        if (results[0][2] != 0) and (results[0][2] == results[1][2]):
+            c.execute("SELECT * FROM Standings"
+                      " ORDER BY (cast(won AS DECIMAL)/total_matches) DESC;")
+            results = c.fetchall()
     return results
 
 
@@ -85,14 +94,9 @@ def reportMatch(winner, loser):
       winner:  the id number of the player who won
       loser:  the id number of the player who lost
     """
-    db = connect()
-    c = db.cursor()
-    winner = bleach.clean(winner, strip=True)
-    loser = bleach.clean(loser, strip=True)
-    c.execute("INSERT INTO Matches (winner, loser, result) VALUES (%s,%s,1)",(winner,loser))
-    c.execute("INSERT INTO Matches (winner, loser, result) VALUES (%s,%s,0)",(loser,winner))
-    db.commit()
-    db.close()
+    with get_cursor() as c:
+        c.execute("INSERT INTO Matches (winner, loser) VALUES (%s,%s)",(winner,loser,))
+
 
 def swissPairings():
     """Returns a list of pairs of players for the next round of a match.
@@ -109,20 +113,17 @@ def swissPairings():
         id2: the second player's unique id
         name2: the second player's name
     """
-    db = connect()
-    c = db.cursor()
-    c.execute("SELECT id,name,won FROM Standings ORDER BY won DESC;")
-    rows = c.fetchall()
-    db.close()
-    i=0
-    pairings = []
-    while i < len(rows):
-        id1 = rows[i][0]
-        name1 = rows[i][1]
-        id2 = rows[i+1][0]
-        name2 = rows[i+1][1]
-        pairings.append((id1,name1,id2,name2))
-        i=i+2
+    with get_cursor() as c:
+        c.execute("SELECT id,name,won FROM Standings ORDER BY won DESC;")
+        rows = c.fetchall()
+        i=0
+        pairings = []
+        while i < len(rows):
+            id1 = rows[i][0]
+            name1 = rows[i][1]
+            id2 = rows[i+1][0]
+            name2 = rows[i+1][1]
+            pairings.append((id1,name1,id2,name2))
+            i=i+2
 
     return pairings
-
